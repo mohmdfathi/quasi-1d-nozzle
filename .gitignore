@@ -205,3 +205,42 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# ----------------------------
+# Fortran compiled files
+# ----------------------------
+*.o
+*.mod
+*.smod
+*.a
+*.so
+*.out
+
+# ----------------------------
+# CFD / simulation outputs
+# ----------------------------
+*.dat
+*.plt
+*.vtk
+*.vtu
+*.h5
+*.hdf5
+*.bin
+*.res
+*.restart
+
+# ----------------------------
+# logs
+# ----------------------------
+*.log
+*.err
+*.out
+log.*
+
+# ----------------------------
+# HPC / job scripts outputs
+# ----------------------------
+slurm-*.out
+slurm-*.err
+core.*
