@@ -34,10 +34,10 @@ contains
             A = 0.03786
 
         elseif( x <= 0.0 )then
-            A = 0.03150 + (0.03786 - 0.03150) / (-0.20) * x
+            A = 0.03150 - 0.0318 * x
 
         else
-            A = 0.03150 + (0.05700 - 0.03150) / (0.50) * x
+            A = 0.03150 + 0.0510 * x
         endif
 
     end function
@@ -48,14 +48,14 @@ contains
     elemental real function dAdx(x)
         real, intent(in) :: x
 
-        if (x <= -0.20) then
+        if( x <= -0.20 )then
             dAdx = 0.0
 
-        elseif (x <= 0.0) then
-            dAdx = (0.03786 - 0.03150) / (-0.20)
+        elseif( x <= 0.0 )then
+            dAdx = -0.0318
 
         else
-            dAdx = (0.05700 - 0.03150) / (0.50)
+            dAdx = 0.0510
         endif
 
     end function
