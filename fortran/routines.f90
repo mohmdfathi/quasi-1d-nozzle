@@ -23,13 +23,18 @@ subroutine primitivesToConservatives(rho, u, p, Q)
     real, intent(in)  :: rho(0:Imax), u(0:Imax), p(0:Imax)
     real, intent(out) :: Q(3,0:Imax)
 
-    real :: E(0:Imax)
+    integer           :: i
+    real              :: E 
 
-    E = p / ((k - 1.0) * rho) + 0.5 * u**2
+    do concurrent( i = 0 : imax )
 
-    Q(1,:) = rho * Ai
-    Q(2,:) = rho * u * Ai
-    Q(3,:) = rho * E * Ai
+    E = p(i) / ((k - 1.0) * rho(i)) + 0.5 * u(i)**2
+
+    Q(1,i) = rho(i) * Ai(i)
+    Q(2,i) = rho(i) * u(i) * Ai(i)
+    Q(3,i) = rho(i) * E * Ai(i)
+    end do 
+
 end subroutine
 
 
@@ -43,13 +48,19 @@ subroutine conservativesToPrimitives(Q, rho, u, p)
     real, intent(in)  :: Q(3,0:Imax)
     real, intent(out) :: rho(0:Imax), u(0:Imax), p(0:Imax)
 
-    real :: E(0:Imax)
+    integer           :: i
+    real              :: E 
 
-    rho = Q(1,:) / Ai
-    u   = Q(2,:) / Q(1,:)
-    E   = Q(3,:) / (rho * Ai)
+    do concurrent( i = 0 : imax )
 
-    p = (k - 1.0) * rho * (E - 0.5 * u**2)
+        rho(i) = Q(1,i) / Ai(i)
+        u(i)   = Q(2,i) / Q(1,i)
+        E      = Q(3,i) / (rho(i) * Ai(i))
+
+        p(i) = (k - 1.0) * rho(i) * (E - 0.5 * u(i)**2)
+    end do 
+
+
 end subroutine
 
 
@@ -90,17 +101,22 @@ subroutine primitivesToFluxesSources(rho, u, p, F, H)
     real, intent(in)  :: rho(0:Imax), u(0:Imax), p(0:Imax) 
     real, intent(out) :: F(3,0:Imax), H(3,0:Imax)
 
-    real :: E(0:Imax)
+    integer           :: i
+    real              :: E 
 
-    E = p / ((k - 1.0) * rho) + 0.5 * u**2
+    do concurrent( i = 0 : imax )
+        E = p(i) / ((k - 1.0) * rho(i)) + 0.5 * u(i)**2
 
-    F(1,:) = rho * u * Ai
-    F(2,:) = (rho * u**2 + p) * Ai
-    F(3,:) = u * (rho * E + p) * Ai
+        F(1,i) = rho(i) * u(i) * Ai(i)
+        F(2,i) = (rho(i) * u(i)**2 + p(i)) * Ai(i)
+        F(3,i) = u(i) * (rho(i) * E + p(i)) * Ai(i)
 
-    H(1,:) = 0.0
-    H(2,:) = -p * dAdxi
-    H(3,:) = 0.0
+        H(1,i) = 0.0
+        H(2,i) = -p(i) * dAdxi(i)
+        H(3,i) = 0.0
+    end do 
+
+
 end subroutine
 
 
@@ -115,19 +131,19 @@ subroutine addArtificialViscosity(p, Q, Qn)
     real, intent(in)    :: Q(3,0:Imax)
     real, intent(inout) :: Qn(3,0:Imax) 
 
-    integer :: i
-    real :: nu
-    real :: D2(3)
+    integer             :: i
+    real                :: nu
+    real                :: D2(3)
 
-    do i = 2, Imax-2
+    do concurrent( i = 1 : imax-1 )
 
         nu = abs(p(i+1) - 2.0*p(i) + p(i-1)) / &
-             (p(i+1) + 2.0*p(i) + p(i-1))
+                (p(i+1) + 2.0*p(i) + p(i-1))
 
         D2 = Q(:,i+1) - 2.0*Q(:,i) + Q(:,i-1)
 
         Qn(:,i) = Qn(:,i) + Cx * nu * D2
-    end do
+    end do 
 
 end subroutine
 
