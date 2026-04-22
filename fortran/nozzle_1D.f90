@@ -73,7 +73,7 @@ program nozzle_1D
         if( mod(iter, 1000) == 0 )then
             block; real :: mdot_ref, imbalance
 
-            mdot_ref = P0 * A(0.0) * sqrt( k / (R * T0) * (2.0 / (k + 1.0))**((k + 1.0) / (k - 1.0)) )
+            mdot_ref = P0 * A_throat * sqrt( k / (R * T0) * (2.0 / (k + 1.0))**((k + 1.0) / (k - 1.0)) )
             imbalance = ( Qn(1,Imax-1) - Qn(1,1) ) / mdot_ref
 
             write(*,'(A,I10,3X,A,ES12.4)') "iter =", iter, "mass_imbalance =", imbalance
@@ -115,7 +115,7 @@ subroutine writeResults(filename)
     ! ---- reference values ----
     rho_ref = P0 / (R * T0)
     a0      = sqrt(k * R * T0)
-    mdot_ref = rho_ref * a0 * Ai(0)
+    mdot_ref = rho_ref * a0 * A_throat
 
     do i = 0, Imax
         write(10,'(5E16.8)') &
