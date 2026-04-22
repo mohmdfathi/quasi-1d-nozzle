@@ -244,3 +244,6 @@ log.*
 slurm-*.out
 slurm-*.err
 core.*
+
+
+fortran/*.csv

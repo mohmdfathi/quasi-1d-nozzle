@@ -80,10 +80,44 @@ program nozzle_1D
     end do
 
     ! -------- output to CSV --------
-    ! TODO..
+    call writeResults("nozzle_maccormack_serial.csv")
 
     !  ---- cleanup
     deallocate(xi, Ai, dAdxi, p, rho, u, Q, Qn, F, H, dQdt)
     write(*,*) "Simulation finished."
 
+contains
+
+! ==============================================================
+! write results to a CSV file
+! ==============================================================
+subroutine writeResults(filename)
+    implicit none
+    character(len=*), intent(in) :: filename
+
+    integer :: i
+    real :: rho_ref, a0, mdot_ref
+
+    open(unit=10, file=filename, status="replace")
+
+    write(10,'(A)') "x/L,p/p0,Mach,mdot/mdot_ref,A"
+
+    ! ---- reference values ----
+    rho_ref = P0 / (R * T0)
+    a0      = sqrt(k * R * T0)
+    mdot_ref = rho_ref * a0 * Ai(0)
+
+    do i = 0, Imax
+        write(10,'(5E16.8)') &
+            xi(i)/(x1 - x0), &                         ! x/L
+            p(i)/P0, &                                 ! p/p0
+            u(i)/sqrt(k*p(i)/rho(i)), &                ! Mach
+            (rho(i)*u(i)*Ai(i)) / mdot_ref, &          ! mdot/mdot_ref
+            Ai(i)                                      ! A(x)
+    end do
+
+    close(10)
+
+end subroutine
+    
 end program nozzle_1D
