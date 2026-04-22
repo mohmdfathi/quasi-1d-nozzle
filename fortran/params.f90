@@ -12,7 +12,7 @@ implicit none
 ! ==============================================================
 
 ! ---- solver settings
-integer, parameter :: Imax = 1280          ! Grid size (number of cells in x-direction)
+integer, parameter :: Imax = 12800         ! Grid size (number of cells in x-direction)
 integer, parameter :: iter_max = 500000    ! Maximum number of iterations for time marching
 
 ! ---- physical constants
