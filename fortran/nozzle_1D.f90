@@ -1,6 +1,6 @@
 program nozzle_1D
     use params 
-    use routines
+    use routines 
     implicit none
 
     ! ---- control variables
@@ -20,6 +20,10 @@ program nozzle_1D
     real, allocatable :: H(:,:)     ! source term
     real, allocatable :: dQdt(:,:)  ! time derivative
 
+    ! ---- wall time 
+    integer           :: count_start, count_end, count_rate
+    real              :: elapsed_time
+
     
     ! ---- grid generation
     call gridGeneration()
@@ -34,6 +38,8 @@ program nozzle_1D
 
     ! ---- allocate solver arrays
     allocate(Q(3,0:Imax), Qn(3,0:Imax),F(3,0:Imax), H(3,0:Imax), dQdt(3,0:Imax))
+
+    call system_clock(count_start, count_rate)
 
     ! ---- time-marching loop (MacCormack scheme)
     do iter = 1, iter_max
@@ -78,6 +84,10 @@ program nozzle_1D
         call primitivesBoundaries(rho, u, p)
 
     end do
+
+    call system_clock(count_end)
+    elapsed_time = real( count_end - count_start )/real( count_rate )
+    write(*,'(A,I0,A)') "Total wall time = ", nint(elapsed_time), " s"
 
     ! -------- output to CSV --------
     call writeResults("nozzle_maccormack_serial.csv")
