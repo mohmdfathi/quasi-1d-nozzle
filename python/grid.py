@@ -1,21 +1,15 @@
 import numpy as np
-from params import Params
 
-# -----------------------------
-# grid generation
-# -----------------------------
-def grid_generation(p: Params):
+class NozzleGeom:
     """
-    Generate 1D grid and nozzle geometry.
-
-    Returns:
-        x    : grid coordinates
-        A    : area distribution
-        dAdx : area gradient
+    1D nozzle geometry and grid
     """
-    x = np.linspace(p.x0, p.x1, p.Imax + 1)
 
-    dAdx = np.where(x <= 0.0, -0.0318, 0.0510)
-    A = p.A_throat + dAdx * x
+    def __init__(self, params):
+        self.x = np.linspace(params.x0, params.x1, params.Imax + 1)
 
-    return x, A, dAdx
+        # piecewise linear area gradient
+        self.dAdx = np.where(self.x <= 0.0, -0.0318, 0.0510)
+
+        # area distribution
+        self.A = params.A_throat + self.dAdx * self.x
