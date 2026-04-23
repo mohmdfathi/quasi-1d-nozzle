@@ -16,17 +16,17 @@ contains
 ! ==============================================================
 ! primitives → conservatives
 ! ==============================================================
-subroutine primitivesToConservatives(rho, u, p, Q)
-    use params,   only : Imax, Ai, k
+subroutine primitivesToConservatives(is, ie, rho, u, p, Q)
+    use params,     only : Imax, Ai, k
     implicit none
+    integer, intent(in) :: is, ie
+    real, intent(in)    :: rho(0:Imax), u(0:Imax), p(0:Imax)
+    real, intent(out)   :: Q(3,0:Imax)
 
-    real, intent(in)  :: rho(0:Imax), u(0:Imax), p(0:Imax)
-    real, intent(out) :: Q(3,0:Imax)
+    integer            :: i
+    real               :: E 
 
-    integer           :: i
-    real              :: E 
-
-    do concurrent( i = 0 : imax )
+    do concurrent( i = is : ie )
 
     E = p(i) / ((k - 1.0) * rho(i)) + 0.5 * u(i)**2
 
@@ -41,17 +41,17 @@ end subroutine
 ! ==============================================================
 ! conservatives → primitives
 ! ==============================================================
-subroutine conservativesToPrimitives(Q, rho, u, p)
-    use params,   only : Imax, Ai, k
+subroutine conservativesToPrimitives(is, ie, Q, rho, u, p)
+    use params,     only : Imax, Ai, k
     implicit none
-
-    real, intent(in)  :: Q(3,0:Imax)
-    real, intent(out) :: rho(0:Imax), u(0:Imax), p(0:Imax)
+    integer, intent(in) :: is, ie
+    real, intent(in)    :: Q(3,0:Imax)
+    real, intent(out)   :: rho(0:Imax), u(0:Imax), p(0:Imax)
 
     integer           :: i
     real              :: E 
 
-    do concurrent( i = 0 : imax )
+    do concurrent( i = is : ie )
 
         rho(i) = Q(1,i) / Ai(i)
         u(i)   = Q(2,i) / Q(1,i)
@@ -67,44 +67,48 @@ end subroutine
 ! ==============================================================
 ! boundary conditions
 ! ==============================================================
-subroutine primitivesBoundaries(rho, u, p)
+subroutine primitivesBoundaries(is, ie, rho, u, p)
     use params,     only : Imax, T0, P0, Pb, R, kR, k
     implicit none
-
+    integer, intent(in) :: is, ie
     real, intent(inout) :: rho(0:Imax), u(0:Imax), p(0:Imax)
 
-    real :: M2, T
+    real                :: M2, T
 
     ! inlet (subsonic)
-    p(0) = p(1)
+    if( is == 0 )then
+        p(0) = p(1)
 
-    M2 = ((P0/p(0))**((k-1)/k) - 1.0) * (2.0/(k-1.0))
-    T  = T0 / (1.0 + 0.5*(k-1.0)*M2)
+        M2 = ((P0/p(0))**((k-1)/k) - 1.0) * (2.0/(k-1.0))
+        T  = T0 /( 1.0 + 0.5 * ( k - 1.0 ) * M2 )
 
-    rho(0) = p(0) / (R*T)
-    u(0)   = sqrt(M2 * kR * T)
+        rho(0) = p(0) / (R*T)
+        u(0)   = sqrt(M2 * kR * T)
+    end if
 
-    ! outlet (extrapolation)
-    p(Imax)   = Pb
-    rho(Imax) = 2*rho(Imax-1) - rho(Imax-2)
-    u(Imax)   = 2*u(Imax-1)   - u(Imax-2)
+    ! outlet (subsonic)
+    if( ie == Imax )then
+        p(Imax)   = Pb
+        rho(Imax) = 2. * rho(Imax-1) - rho(Imax-2)
+        u(Imax)   = 2. * u(Imax-1)   - u(Imax-2)
+    end if
 end subroutine
 
 
 ! ==============================================================
 ! fluxes + source term
 ! ==============================================================
-subroutine primitivesToFluxesSources(rho, u, p, F, H)
-    use params,   only : Imax, Ai, dAdxi, k
+subroutine primitivesToFluxesSources(is, ie, rho, u, p, F, H)
+    use params,     only : Imax, Ai, dAdxi, k
     implicit none
+    integer, intent(in) :: is, ie
+    real, intent(in)    :: rho(0:Imax), u(0:Imax), p(0:Imax) 
+    real, intent(out)   :: F(3,0:Imax), H(3,0:Imax)
 
-    real, intent(in)  :: rho(0:Imax), u(0:Imax), p(0:Imax) 
-    real, intent(out) :: F(3,0:Imax), H(3,0:Imax)
+    integer             :: i
+    real                :: E 
 
-    integer           :: i
-    real              :: E 
-
-    do concurrent( i = 0 : imax )
+    do concurrent( i = is : ie )
         E = p(i) / ((k - 1.0) * rho(i)) + 0.5 * u(i)**2
 
         F(1,i) = rho(i) * u(i) * Ai(i)
@@ -123,10 +127,10 @@ end subroutine
 ! ==============================================================
 ! artificial viscosity (Jameson style)
 ! ==============================================================
-subroutine addArtificialViscosity(p, Q, Qn)
+subroutine addArtificialViscosity(is, ie, p, Q, Qn)
     use params,     only : Imax, Cx
     implicit none
-
+    integer, intent(in) :: is, ie
     real, intent(in)    :: p(0:Imax)
     real, intent(in)    :: Q(3,0:Imax)
     real, intent(inout) :: Qn(3,0:Imax) 
@@ -135,7 +139,7 @@ subroutine addArtificialViscosity(p, Q, Qn)
     real                :: nu
     real                :: D2(3)
 
-    do concurrent( i = 1 : imax-1 )
+    do concurrent( i = max(is,1) : min(ie, Imax-1) )
 
         nu = abs(p(i+1) - 2.0*p(i) + p(i-1)) / &
                 (p(i+1) + 2.0*p(i) + p(i-1))

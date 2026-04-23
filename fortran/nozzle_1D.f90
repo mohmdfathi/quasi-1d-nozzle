@@ -1,5 +1,6 @@
 program nozzle_1D
     use params 
+    use omp_lib
     use routines 
     implicit none
 
@@ -24,6 +25,10 @@ program nozzle_1D
     integer           :: count_start, count_end, count_rate
     real              :: elapsed_time
 
+    ! ---- threads info
+    integer           :: is, ie
+    integer           :: tid, nthreads
+
     
     ! ---- grid generation
     call gridGeneration()
@@ -47,29 +52,40 @@ program nozzle_1D
         ! ---- CFL time step
         dt = CFL * dx / maxval( abs(u) + sqrt(k * p / rho) )
 
-        ! ---- build conservative forms
-        call primitivesToConservatives(rho, u, p, Q)
-        call primitivesToFluxesSources(rho, u, p, F, H)
+        !$omp parallel default(shared) private(is,ie,tid)
+        tid = omp_get_thread_num()
+        nthreads = omp_get_num_threads()
 
+        call getThreadBounds(tid, nthreads, is, ie)
+       
+        ! ---- build conservative forms
+        call primitivesToConservatives(is, ie, rho, u, p, Q)
+        call primitivesToFluxesSources(is, ie, rho, u, p, F, H)
+        
+        !$omp barrier
         ! ---- predictor step (backward difference)
-        do i = 1, Imax-1
+        do i = max(1,is), min(Imax-1,ie)
             dQdt(:,i) = (F(:,i) - F(:,i-1)) / dx + H(:,i)
             Qn(:,i) = Q(:,i) - dt * dQdt(:,i) 
         end do
-        call addArtificialViscosity(p, Q, Qn)
-
-        call conservativesToPrimitives(Qn, rho, u, p)
-        call primitivesBoundaries(rho, u, p)
-        call primitivesToFluxesSources(rho, u, p, F, H)
+        call addArtificialViscosity(is, ie, p, Q, Qn)
+        call conservativesToPrimitives(is, ie, Qn, rho, u, p)
+        call primitivesBoundaries(is, ie, rho, u, p)
+        call primitivesToFluxesSources(is, ie, rho, u, p, F, H)
         
+        !$omp barrier
         ! ---- corrector step (forward difference)
-        do i = 1, Imax-1
+        do i = max(1,is), min(Imax-1,ie)
             dQdt(:,i) = 0.5 * (dQdt(:,i) + (F(:,i+1) - F(:,i)) / dx + H(:,i))
             Qn(:,i) = Q(:,i) - dt * dQdt(:,i)
         end do
-        call addArtificialViscosity(p, Q, Qn)
+        call addArtificialViscosity(is, ie, p, Q, Qn)
+        call conservativesToPrimitives(is, ie, Qn, rho, u, p)
+        call primitivesBoundaries(is, ie, rho, u, p)
 
-        ! ---- Convergence monitor: 
+        !$omp end parallel
+
+        ! ---- Convergence monitor
         if( mod(iter, 1000) == 0 )then
             block; real :: mdot_ref, imbalance
 
@@ -80,8 +96,6 @@ program nozzle_1D
             end block
         end if
 
-        call conservativesToPrimitives(Qn, rho, u, p)
-        call primitivesBoundaries(rho, u, p)
 
     end do
 
@@ -90,7 +104,11 @@ program nozzle_1D
     write(*,'(A,I0,A)') "Total wall time = ", nint(elapsed_time), " s"
 
     ! -------- output to CSV --------
-    call writeResults("nozzle_maccormack_serial.csv")
+    if( nthreads == 1 )then 
+        call writeResults("nozzle_maccormack_serial.csv")
+    else
+        call writeResults("nozzle_maccormack_parallel.csv")
+    end if
 
     !  ---- cleanup
     deallocate(xi, Ai, dAdxi, p, rho, u, Q, Qn, F, H, dQdt)
@@ -105,8 +123,8 @@ subroutine writeResults(filename)
     implicit none
     character(len=*), intent(in) :: filename
 
-    integer :: i
-    real :: rho_ref, a0, mdot_ref
+    integer    :: i
+    real       :: rho_ref, a0, mdot_ref
 
     open(unit=10, file=filename, status="replace")
 
@@ -127,6 +145,35 @@ subroutine writeResults(filename)
     end do
 
     close(10)
+
+end subroutine
+
+! ==============================================================
+! compute contiguous index range [is, ie] for each thread
+! over a 1D domain (0 ... Imax), with load-balanced partitioning
+! ==============================================================
+subroutine getThreadBounds(tid, nthreads, is, ie)
+    implicit none
+    integer, intent(in )  :: tid, nthreads
+    integer, intent(out)  :: is, ie 
+
+    integer               :: n, chunk, rem
+   
+    ! total number of points (0 ... Imax)
+    n = Imax + 1 
+
+    ! uniform chunk size + leftover points
+    chunk = n / nthreads
+    rem   = mod(n, nthreads)
+
+    ! distribute remainder among first threads
+    if( tid < rem )then
+        is = tid * ( chunk + 1 )
+        ie = is + chunk
+    else
+        is = tid * chunk + rem
+        ie = is + chunk - 1
+    end if
 
 end subroutine
     
