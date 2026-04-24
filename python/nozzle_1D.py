@@ -26,6 +26,7 @@ if __name__ == "__main__":
     rank = domain.rank
     size = domain.size
 
+    t_start = MPI.Wtime()
     for iter in range(pars.iter_max):
 
         # ---- CFL (local max + global reduction)
@@ -66,6 +67,10 @@ if __name__ == "__main__":
                 imbalance = (q_right_global - q_left_global) / mdot_ref
             
                 print(f"[iter {iter}] mass imbalance = {imbalance:.4E}")
+    t_end = MPI.Wtime()
+    
+    if rank == 0:
+        print(f"Total wall time: {t_end - t_start:.6f} s")
 
     filename = f"nozzle_maccormack_parallel_rank_{rank}.csv"
     write_results(flow, geom, filename)
