@@ -68,22 +68,46 @@ def apply_boundaries(flow):
     u   = flow.u
     p   = flow.p
 
+    # [ ghost | interior ... interior | ghost ]
+    #   0        1 ... N-2              N-1
+    # neighbors
+    left  = flow.domain.left
+    right = flow.domain.right
+
+    comm  = flow.domain.comm
+
+
+    # pack
+    flow.send_left[:]  = (rho[1],  u[1],  p[1])
+    flow.send_right[:] = (rho[-2], u[-2], p[-2])
+
+    # exchange
+    comm.Sendrecv(flow.send_left,  left,  recvbuf=flow.recv_left,  source=left)
+    comm.Sendrecv(flow.send_right, right, recvbuf=flow.recv_right, source=right)
+
+    # unpack
+    rho[0],  u[0],  p[0]  = flow.recv_left
+    rho[-1], u[-1], p[-1] = flow.recv_right
+
+
     par = flow.params
     p0, T0, pb, R, k = par.p0, par.T0, par.pb, par.R, par.k
 
     # inlet
-    p[0] = p[1]
+    if( flow.domain.rank == 0 ):
+        p[0] = p[1]
 
-    M2 = ((p0 / p[0])**((k - 1.0) / k) - 1.0) * (2.0 / (k - 1.0))
-    T  = T0 / (1.0 + 0.5 * (k - 1.0) * M2)
+        M2 = ((p0 / p[0])**((k - 1.0) / k) - 1.0) * (2.0 / (k - 1.0))
+        T  = T0 / (1.0 + 0.5 * (k - 1.0) * M2)
 
-    rho[0] = p[0] / (R * T)
-    u[0]   = np.sqrt(M2 * k * R * T)
+        rho[0] = p[0] / (R * T)
+        u[0]   = np.sqrt(M2 * k * R * T)
 
     # outlet
-    p[-1]   = pb
-    rho[-1] = 2.0 * rho[-2] - rho[-3]
-    u[-1]   = 2.0 * u[-2]   - u[-3]
+    if( flow.domain.rank == flow.domain.size - 1 ):
+        p[-1]   = pb
+        rho[-1] = 2.0 * rho[-2] - rho[-3]
+        u[-1]   = 2.0 * u[-2]   - u[-3]
 
 
 # ==============================================================
