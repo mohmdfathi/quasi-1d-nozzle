@@ -1,17 +1,20 @@
 import numpy as np
+from mpi4py import MPI
 from params import Parameters 
 from state  import FlowState
 from grid   import NozzleGeom
+from mpi    import Domain1D
 
 from routines import write_results, add_dissipation
 
 if __name__ == "__main__":
 
     pars = Parameters()
-    flow = FlowState(pars)
-    geom = NozzleGeom(pars)
+    domain = Domain1D(pars)
+    flow = FlowState(pars, domain)
+    geom = NozzleGeom(pars, domain)
 
-    shape = pars.v_shape
+    shape = domain.v_shape
     Q  = np.empty( shape )
     Qn = np.empty( shape )
     F  = np.empty( shape )
@@ -19,21 +22,27 @@ if __name__ == "__main__":
 
     flow.initialize(mach=0.5)
  
+    comm = domain.comm
+    rank = domain.rank
+    size = domain.size
+
+    t_start = MPI.Wtime()
     for iter in range(pars.iter_max):
 
-        # ---- CFL time step
+        # ---- CFL (local max + global reduction)
         wave_speed = np.abs(flow.u) + flow.sound_speed()
-        dt = pars.CFL * pars.dx / np.max(wave_speed)
+        dt_local = pars.CFL * pars.dx / np.max(wave_speed)
+        dt = comm.allreduce(dt_local, op=MPI.MIN)
         dx = pars.dx
     
-        # ---- build conservative forms
+        # ---- conservative update (local)
         flow.update_conservatives(geom, Q)
         flow.update_fluxes_source(geom, F, H)
     
         # MacCormack predictor step (backward difference)
         dQdt_pred = (F[:, 1:-1] - F[:, 0:-2]) / dx + H[:, 1:-1]
         Qn[:, 1:-1] = Q[:, 1:-1] - dt * dQdt_pred
-        add_dissipation(flow, Qn)
+        add_dissipation(flow, Q, Qn)
 
         flow.update_primitives(geom, Qn) 
         flow.update_fluxes_source(geom, F, H)
@@ -42,13 +51,26 @@ if __name__ == "__main__":
         dQdt_corr = (F[:, 2:] - F[:, 1:-1]) / dx + H[:, 1:-1]
         dQdt_mean = 0.5 * (dQdt_pred + dQdt_corr)
         Qn[:, 1:-1] = Q[:, 1:-1] - dt * dQdt_mean
-        add_dissipation(flow, Qn)
+        add_dissipation(flow, Q, Qn)
 
         flow.update_primitives(geom, Qn) 
 
         if iter % 1000 == 0:
-            mdot_ref = pars.p0 * pars.A_throat * np.sqrt( ( pars.k / (pars.R * pars.T0)) * (2.0 / (pars.k + 1.0)) ** ((pars.k + 1.0) / (pars.k - 1.0)) )
-            imbalance = (Qn[0, -2] - Qn[0, 0]) / mdot_ref
-            print(f"[iter {iter}] mass imbalance = {imbalance:.4E}")
 
-    write_results(flow, geom, "nozzle_maccormack_serial.csv")
+            if rank == size-1:
+                comm.send(Qn[0, -2], dest=0, tag=11)
+
+            if rank == 0:
+                q_left_global = Qn[0, 1]
+                q_right_global = comm.recv(source=size-1, tag=11)
+                mdot_ref = pars.p0 * pars.A_throat * np.sqrt( ( pars.k / (pars.R * pars.T0)) * (2.0 / (pars.k + 1.0)) ** ((pars.k + 1.0) / (pars.k - 1.0)) )
+                imbalance = (q_right_global - q_left_global) / mdot_ref
+            
+                print(f"[iter {iter}] mass imbalance = {imbalance:.4E}")
+    t_end = MPI.Wtime()
+    
+    if rank == 0:
+        print(f"Total wall time: {t_end - t_start:.6f} s")
+
+    filename = f"nozzle_maccormack_parallel_rank_{rank}.csv"
+    write_results(flow, geom, filename)

@@ -6,14 +6,20 @@ class FlowState:
     Container for primitive flow variables + parameters
     """
 
-    def __init__(self, params ):
+    def __init__(self, params, domain):
         self.params = params   # attach params
+        self.domain = domain   # attach domain
 
-        shape = self.params.s_shape
+        shape = self.domain.s_shape
 
         self.rho = np.empty(shape)
         self.u   = np.empty(shape)
         self.p   = np.empty(shape)
+
+        self.send_left  = np.empty(3)
+        self.recv_left  = np.empty(3)
+        self.send_right = np.empty(3)
+        self.recv_right = np.empty(3)
 
     def initialize(self, mach=0.5):
         """

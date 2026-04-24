@@ -68,22 +68,46 @@ def apply_boundaries(flow):
     u   = flow.u
     p   = flow.p
 
+    # [ ghost | interior ... interior | ghost ]
+    #   0        1 ... N-2              N-1
+    # neighbors
+    left  = flow.domain.left
+    right = flow.domain.right
+
+    comm  = flow.domain.comm
+
+
+    # pack
+    flow.send_left[:]  = (rho[1],  u[1],  p[1])
+    flow.send_right[:] = (rho[-2], u[-2], p[-2])
+
+    # exchange
+    comm.Sendrecv(flow.send_left,  left,  recvbuf=flow.recv_left,  source=left)
+    comm.Sendrecv(flow.send_right, right, recvbuf=flow.recv_right, source=right)
+
+    # unpack
+    rho[0],  u[0],  p[0]  = flow.recv_left
+    rho[-1], u[-1], p[-1] = flow.recv_right
+
+
     par = flow.params
     p0, T0, pb, R, k = par.p0, par.T0, par.pb, par.R, par.k
 
     # inlet
-    p[0] = p[1]
+    if( flow.domain.rank == 0 ):
+        p[0] = p[1]
 
-    M2 = ((p0 / p[0])**((k - 1.0) / k) - 1.0) * (2.0 / (k - 1.0))
-    T  = T0 / (1.0 + 0.5 * (k - 1.0) * M2)
+        M2 = ((p0 / p[0])**((k - 1.0) / k) - 1.0) * (2.0 / (k - 1.0))
+        T  = T0 / (1.0 + 0.5 * (k - 1.0) * M2)
 
-    rho[0] = p[0] / (R * T)
-    u[0]   = np.sqrt(M2 * k * R * T)
+        rho[0] = p[0] / (R * T)
+        u[0]   = np.sqrt(M2 * k * R * T)
 
     # outlet
-    p[-1]   = pb
-    rho[-1] = 2.0 * rho[-2] - rho[-3]
-    u[-1]   = 2.0 * u[-2]   - u[-3]
+    if( flow.domain.rank == flow.domain.size - 1 ):
+        p[-1]   = pb
+        rho[-1] = 2.0 * rho[-2] - rho[-3]
+        u[-1]   = 2.0 * u[-2]   - u[-3]
 
 
 # ==============================================================
@@ -136,22 +160,24 @@ def fluxes_and_sources(flow, geom, F, H):
 
 
 # ==============================================================
-def add_dissipation(flow, Qn):
+def add_dissipation(flow, Q, Qn):
     """
-    Jameson artificial dissipation (restricted interior stencil)
+    Jameson artificial dissipation (interior stencil)
     """
 
     C_visc = flow.params.Cx
     p = flow.p
 
-    i = slice(2, -2)
+    i = slice(1, -1)
 
+    # sensor (nu) aligned with i
     nu = np.abs( p[2:] - 2*p[1:-1] + p[:-2] ) / \
                ( p[2:] + 2*p[1:-1] + p[:-2] )
 
-    D2 = Qn[:, 2:] - 2*Qn[:, 1:-1] + Qn[:, :-2]
+    # second difference aligned with i
+    D2 = Q[:, 2:] - 2*Q[:, 1:-1] + Q[:, :-2]
 
-    Qn[:, i] += C_visc * nu[1:-1] * D2[:,1:-1]
+    Qn[:, i] += C_visc * D2 * nu[np.newaxis, :] 
     
 
 # ==============================================================
