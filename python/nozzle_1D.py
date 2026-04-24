@@ -35,7 +35,7 @@ if __name__ == "__main__":
         # MacCormack predictor step (backward difference)
         dQdt_pred = (F[:, 1:-1] - F[:, 0:-2]) / dx + H[:, 1:-1]
         Qn[:, 1:-1] = Q[:, 1:-1] - dt * dQdt_pred
-        add_dissipation(flow, Qn)
+        add_dissipation(flow, Q, Qn)
 
         flow.update_primitives(geom, Qn) 
         flow.update_fluxes_source(geom, F, H)
@@ -44,7 +44,7 @@ if __name__ == "__main__":
         dQdt_corr = (F[:, 2:] - F[:, 1:-1]) / dx + H[:, 1:-1]
         dQdt_mean = 0.5 * (dQdt_pred + dQdt_corr)
         Qn[:, 1:-1] = Q[:, 1:-1] - dt * dQdt_mean
-        add_dissipation(flow, Qn)
+        add_dissipation(flow, Q, Qn)
 
         flow.update_primitives(geom, Qn) 
 

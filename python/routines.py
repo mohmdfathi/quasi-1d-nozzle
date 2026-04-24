@@ -160,22 +160,24 @@ def fluxes_and_sources(flow, geom, F, H):
 
 
 # ==============================================================
-def add_dissipation(flow, Qn):
+def add_dissipation(flow, Q, Qn):
     """
-    Jameson artificial dissipation (restricted interior stencil)
+    Jameson artificial dissipation (interior stencil)
     """
 
     C_visc = flow.params.Cx
     p = flow.p
 
-    i = slice(2, -2)
+    i = slice(1, -1)
 
+    # sensor (nu) aligned with i
     nu = np.abs( p[2:] - 2*p[1:-1] + p[:-2] ) / \
                ( p[2:] + 2*p[1:-1] + p[:-2] )
 
-    D2 = Qn[:, 2:] - 2*Qn[:, 1:-1] + Qn[:, :-2]
+    # second difference aligned with i
+    D2 = Q[:, 2:] - 2*Q[:, 1:-1] + Q[:, :-2]
 
-    Qn[:, i] += C_visc * nu[1:-1] * D2[:,1:-1]
+    Qn[:, i] += C_visc * D2 * nu[np.newaxis, :] 
     
 
 # ==============================================================
