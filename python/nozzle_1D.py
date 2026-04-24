@@ -1,4 +1,5 @@
 import numpy as np
+from mpi4py import MPI
 from params import Parameters 
 from state  import FlowState
 from grid   import NozzleGeom
@@ -21,11 +22,15 @@ if __name__ == "__main__":
 
     flow.initialize(mach=0.5)
  
+    comm = domain.comm
+    rank = domain.rank
+
     for iter in range(pars.iter_max):
 
-        # ---- CFL time step
+        # ---- CFL (local max + global reduction)
         wave_speed = np.abs(flow.u) + flow.sound_speed()
-        dt = pars.CFL * pars.dx / np.max(wave_speed)
+        dt_local = pars.CFL * pars.dx / np.max(wave_speed)
+        dt = comm.allreduce(dt_local, op=MPI.MIN)
         dx = pars.dx
     
         # ---- build conservative forms
