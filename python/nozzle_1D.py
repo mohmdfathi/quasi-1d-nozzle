@@ -24,6 +24,7 @@ if __name__ == "__main__":
  
     comm = domain.comm
     rank = domain.rank
+    size = domain.size
 
     for iter in range(pars.iter_max):
 
@@ -53,10 +54,18 @@ if __name__ == "__main__":
 
         flow.update_primitives(geom, Qn) 
 
-        if iter % 1000 == 0 and rank == 0:
-            mdot_ref = pars.p0 * pars.A_throat * np.sqrt( ( pars.k / (pars.R * pars.T0)) * (2.0 / (pars.k + 1.0)) ** ((pars.k + 1.0) / (pars.k - 1.0)) )
-            imbalance = (Qn[0, -2] - Qn[0, 0]) / mdot_ref
-            print(f"[iter {iter}] mass imbalance = {imbalance:.4E}")
+        if iter % 1000 == 0:
+
+            if rank == size-1:
+                comm.send(Qn[0, -2], dest=0, tag=11)
+
+            if rank == 0:
+                q_left_global = Qn[0, 1]
+                q_right_global = comm.recv(source=size-1, tag=11)
+                mdot_ref = pars.p0 * pars.A_throat * np.sqrt( ( pars.k / (pars.R * pars.T0)) * (2.0 / (pars.k + 1.0)) ** ((pars.k + 1.0) / (pars.k - 1.0)) )
+                imbalance = (q_right_global - q_left_global) / mdot_ref
+            
+                print(f"[iter {iter}] mass imbalance = {imbalance:.4E}")
 
     filename = f"nozzle_maccormack_parallel_rank_{rank}.csv"
     write_results(flow, geom, filename)
