@@ -33,7 +33,7 @@ if __name__ == "__main__":
         dt = comm.allreduce(dt_local, op=MPI.MIN)
         dx = pars.dx
     
-        # ---- build conservative forms
+        # ---- conservative update (local)
         flow.update_conservatives(geom, Q)
         flow.update_fluxes_source(geom, F, H)
     
@@ -53,9 +53,10 @@ if __name__ == "__main__":
 
         flow.update_primitives(geom, Qn) 
 
-        if iter % 1000 == 0:
+        if iter % 1000 == 0 and rank == 0:
             mdot_ref = pars.p0 * pars.A_throat * np.sqrt( ( pars.k / (pars.R * pars.T0)) * (2.0 / (pars.k + 1.0)) ** ((pars.k + 1.0) / (pars.k - 1.0)) )
             imbalance = (Qn[0, -2] - Qn[0, 0]) / mdot_ref
             print(f"[iter {iter}] mass imbalance = {imbalance:.4E}")
 
-    write_results(flow, geom, "nozzle_maccormack_serial.csv")
+    filename = f"nozzle_maccormack_parallel_rank_{rank}.csv"
+    write_results(flow, geom, filename)
