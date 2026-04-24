@@ -2,16 +2,18 @@ import numpy as np
 from params import Parameters 
 from state  import FlowState
 from grid   import NozzleGeom
+from mpi    import Domain1D
 
 from routines import write_results, add_dissipation
 
 if __name__ == "__main__":
 
     pars = Parameters()
-    flow = FlowState(pars)
-    geom = NozzleGeom(pars)
+    domain = Domain1D(pars)
+    flow = FlowState(pars, domain)
+    geom = NozzleGeom(pars, domain)
 
-    shape = pars.v_shape
+    shape = domain.v_shape
     Q  = np.empty( shape )
     Qn = np.empty( shape )
     F  = np.empty( shape )
