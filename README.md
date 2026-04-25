@@ -32,3 +32,13 @@ where \( E \) is the total specific internal enegy of the gas including the kine
 ### Boundary Conditions
 
 At the inlet, total (stagnation) conditions are prescribed in terms of total pressure \(P_0\) and total temperature \(T_0\). These values are used to reconstruct the primitive flow variables \((\rho, u, p)\) assuming isentropic relations, with appropriate treatment of characteristic waves for subsonic inflow where only the incoming characteristic is imposed while the outgoing information is taken from the interior solution. At the outlet, a fixed static back pressure \(p_{b}\) is imposed. For subsonic outflow, only one characteristic is specified through the back pressure while the remaining variables are extrapolated from the interior, whereas for supersonic outflow all variables are fully extrapolated from the interior domain. 
+
+## Numerical Workflow (Shock-Capturing Method)
+
+The governing equations are solved using an explicit finite-difference predictor-corrector MacCormack scheme, which provides second-order accuracy in smooth regions while remaining efficient for unsteady compressible flows. Since shock waves may develop inside the nozzle, an artificial dissipation term is added to suppress non-physical oscillations near discontinuities and stabilize the solution.
+
+At the beginning of the simulation, the computational grid, nozzle area distribution \(A(x)\), and its derivative \(dA/dx\) are generated. Primitive variables \((\rho, u, p)\) are then initialized with a physically reasonable subsonic guess. During each iteration, the time step is computed from a CFL condition based on the local flow velocity and speed of sound.
+
+The primitive variables are converted into conservative variables and flux/source terms. A predictor step is first performed using backward spatial differencing to estimate an intermediate solution. Artificial viscosity is then applied, followed by reconstruction of primitive variables and enforcement of inlet/outlet boundary conditions. Next, a corrector step is performed using forward differencing, and the final update is obtained by averaging predictor and corrector derivatives. Artificial dissipation and boundary conditions are applied again after the correction step.
+
+The solution is advanced in time until a steady state is reached. Convergence is monitored through the mass-flow imbalance between inlet and outlet sections. Once converged, the solver writes normalized pressure, Mach number, mass flow rate, and nozzle geometry to output files for post-processing.
