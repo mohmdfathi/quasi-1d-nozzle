@@ -1,6 +1,10 @@
 # quasi-1d-nozzle
-A simple simulation of quasi-1D compressible nozzle flow implemented in Python, Fortran, and C++, with plans for CPU and GPU parallelization.
 
+A nozzle is a shaped duct that converts pressure energy into kinetic energy by changing the cross-sectional area of the flow passage. Nozzles are essential in many engineering systems because they accelerate fluids, control mass flow rate, generate thrust, and enable supersonic motion. Convergent-divergent nozzles are especially important in applications such as rocket engines, gas turbines, propulsion devices, and wind tunnels.
+
+The flow inside a convergent-divergent nozzle strongly depends on the imposed back pressure. Under specific outlet pressure conditions, the flow can accelerate to supersonic speeds and a normal shock may form inside the divergent section, causing an abrupt transition back to subsonic flow downstream. Capturing such discontinuities accurately is one of the main challenges in the numerical solution of hyperbolic conservation laws, even when the initial conditions are smooth.
+
+This project numerically solves the quasi-1D compressible Euler equations for flow through a convergent-divergent nozzle using the explicit MacCormack scheme. The solver is implemented in Python, Fortran, and C++, with  simple plans for CPU and GPU parallelization.
 
 ## Governing Equations
 
