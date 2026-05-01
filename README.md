@@ -10,34 +10,34 @@ This project numerically solves the quasi-1D compressible Euler equations for fl
 
 We solve the quasi-1D unsteady compressible flow in ducts of variable cross-section. The governing equations are:
 
-\[
+$$
 \partial_t Q + \partial_x F + H = 0
-\]
+$$
 
-where the solution vector \( Q \) and flux vector \( F \) can be computed using the primitive variables \( \rho, u, p\), which are density, velocity, static pressure of the flow:
+where the solution vector $Q$ and flux vector $F$ can be computed using the primitive variables $\rho, u, p$, which are density, velocity, static pressure of the flow:
 
-\[ Q = \begin{pmatrix} \rho A \\ \rho u A \\ \rho E A \end{pmatrix} ,\quad
-   F = \begin{pmatrix} \rho u A \\(\rho u^2 + p) A \\u \left( \rho E + p \right) A \end{pmatrix} \]
+$$ Q = \left[ \rho A , \rho u A , \rho E A \right],\quad
+   F = \left[ \rho u A, (\rho u^2 + p) A , u \left( \rho E + p \right) A \right] $$
 
-Here \(A\) denotes the cross section area of the duct, and \(\gamma\) is the specific heat ratio of the gas. The source term accounts for the effect of the cross section variation on the inviscid flow:
+Here $A$ denotes the cross section area of the duct, and $\gamma$ is the specific heat ratio of the gas. The source term accounts for the effect of the cross section variation on the inviscid flow:
 
-\[ H = \begin{pmatrix} 0 \\ -p \frac{dA}{dx}\\ 0 \end{pmatrix} \]
+$$ H = \left[ 0 , -p \frac{dA}{dx} , 0 \right] $$
 
 This set of equations represents conservation of mass, momentum, and energy. To close the system, we use the equation of state:
 
-\[ E = \frac{u^2}{2} + \frac{p}{\rho(\gamma - 1)} \]
+$$ E = \frac{u^2}{2} + \frac{p}{\rho(\gamma - 1)} $$
 
-where \( E \) is the total specific internal enegy of the gas including the kinetic energy.
+where $E$ is the total specific internal enegy of the gas including the kinetic energy.
 
 ### Boundary Conditions
 
-At the inlet, total (stagnation) conditions are prescribed in terms of total pressure \(P_0\) and total temperature \(T_0\). These values are used to reconstruct the primitive flow variables \((\rho, u, p)\) assuming isentropic relations, with appropriate treatment of characteristic waves for subsonic inflow where only the incoming characteristic is imposed while the outgoing information is taken from the interior solution. At the outlet, a fixed static back pressure \(p_{b}\) is imposed. For subsonic outflow, only one characteristic is specified through the back pressure while the remaining variables are extrapolated from the interior, whereas for supersonic outflow all variables are fully extrapolated from the interior domain. 
+At the inlet, total (stagnation) conditions are prescribed in terms of total pressure $p_0$ and total temperature $T_0$. These values are used to reconstruct the primitive flow variables $(\rho, u, p)$ assuming isentropic relations, with appropriate treatment of characteristic waves for subsonic inflow where only the incoming characteristic is imposed while the outgoing information is taken from the interior solution. At the outlet, a fixed static back pressure $p_{b}$ is imposed. For subsonic outflow, only one characteristic is specified through the back pressure while the remaining variables are extrapolated from the interior, whereas for supersonic outflow all variables are fully extrapolated from the interior domain. 
 
 ## Numerical Workflow (Shock-Capturing Method)
 
 The governing equations are solved using an explicit finite-difference predictor-corrector MacCormack scheme, which provides second-order accuracy in smooth regions while remaining efficient for unsteady compressible flows. Since shock waves may develop inside the nozzle, an artificial dissipation term is added to suppress non-physical oscillations near discontinuities and stabilize the solution.
 
-At the beginning of the simulation, the computational grid, nozzle area distribution \(A(x)\), and its derivative \(dA/dx\) are generated. Primitive variables \((\rho, u, p)\) are then initialized with a physically reasonable subsonic guess. During each iteration, the time step is computed from a CFL condition based on the local flow velocity and speed of sound.
+At the beginning of the simulation, the computational grid, nozzle area distribution $A(x)$, and its derivative $dA/dx$ are generated. Primitive variables $(\rho, u, p)$ are then initialized with a physically reasonable subsonic guess. During each iteration, the time step is computed from a CFL condition based on the local flow velocity and speed of sound.
 
 The primitive variables are converted into conservative variables and flux/source terms. A predictor step is first performed using backward spatial differencing to estimate an intermediate solution. Artificial viscosity is then applied, followed by reconstruction of primitive variables and enforcement of inlet/outlet boundary conditions. Next, a corrector step is performed using forward differencing, and the final update is obtained by averaging predictor and corrector derivatives. Artificial dissipation and boundary conditions are applied again after the correction step.
 
