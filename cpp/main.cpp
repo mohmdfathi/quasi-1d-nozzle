@@ -1,6 +1,7 @@
 #include <iostream>
-// #include "parameters.hpp"
+#include "parameters.hpp"
 #include "state.hpp"
+#include "grid.hpp"
 
 int main()
 {
@@ -12,11 +13,18 @@ int main()
               << Parameters::Imax + 1 << "\n";
 
     FlowState flow;
+    NozzleGrid grid;
 
     flow.initialize(0.5);
 
     std::cout << "rho[0] = "
               << flow.rho[0]
               << "\n";
+
+    
+    std::cout << "x[0] = "
+              << grid.x[0]
+              << "\n";
+
     return 0;
 }
